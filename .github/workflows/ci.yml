@@ -52,3 +52,28 @@ jobs:
         with:
           name: validador-dni-jar
           path: target/validador-dni.jar
+
+  generar_manifiesto:
+    runs-on: ubuntu-latest
+    # Solo se ejecuta si 'empaquetar' terminó correctamente:
+    # 'needs' ya lo garantiza (si empaquetar falla o se cancela, este job se omite).
+    needs: empaquetar
+    steps:
+      - name: Generar build-info.txt
+        env:
+          # El secret solo se inyecta como variable de entorno en este paso.
+          # GitHub enmascara su valor en el log (***), pero además nunca lo imprimimos.
+          DEPLOY_ID: ${{ secrets.DEPLOY_ID }}
+          PROJECT_NAME: ${{ github.event.repository.name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          echo "Proyecto: $PROJECT_NAME" > build-info.txt
+          echo "Commit: $COMMIT_SHA" >> build-info.txt
+          echo "Fecha (UTC): $(date -u +'%Y-%m-%d %H:%M:%S')" >> build-info.txt
+          echo "Deploy ID (hash): $(echo -n "$DEPLOY_ID" | sha256sum | cut -c1-12)" >> build-info.txt
+
+      - name: Guardar build-info como artefacto
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-info
+          path: build-info.txt
